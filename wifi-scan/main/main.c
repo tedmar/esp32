@@ -69,6 +69,22 @@ i2c_master_init( void )
     i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 }
 
+static void
+wait_next( void )
+{
+	int delay, subst;
+
+	for( delay = 2000, subst = 500; delay > 50; delay -= subst )
+	{
+		led_toggle();
+		tdelay( delay );
+		led_toggle();
+		tdelay( delay );
+		if( delay <= 1000 )
+			subst = 50;
+	}
+}
+
 void
 app_main( void )
 {
@@ -78,9 +94,12 @@ app_main( void )
 
 	i2c_master_init();
 	init_oled_display();
+	init_test_led();
 	// initialize NVS
 	ESP_ERROR_CHECK(nvs_flash_init());
 	
+//	xTaskCreate(&task_idle, "task_idle", 2048, NULL, 5, NULL);
+
 	// initialize the tcp stack
 	tcpip_adapter_init();
 
@@ -101,30 +120,37 @@ app_main( void )
 		.channel = 0,
         .show_hidden = true
     };
-	oled_text( "Start scan" );
-	printf("Start scanning...");
-	ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
-	printf(" completed!\n\n");
-	oled_text( "Scan done" );
-		
-	// get the list of APs found in the last scan
-	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_num, ap_records));
 
-	sprintf( buff, "Found %d access", ap_num );
-	oled_text(buff);
-	oled_text("");
+	while(1)
+	{
+		oled_clear();
+		oled_text( "Start scan" );
+		printf("Start scanning...");
+		ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
+		printf(" completed!\n\n");
+		oled_text( "Scan done" );
+			
+		// get the list of APs found in the last scan
+		ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_num, ap_records));
 
-	for( p = ap_records; p < ap_records + ap_num && p->rssi > -80; ++p )
-		oled_text( (char *)p->ssid );
+		sprintf( buff, "Found %d access", ap_num );
+		oled_text(buff);
+		oled_text("");
 
-	// print the list 
-	printf("Found %d access points:\n\n", ap_num);
-	printf("               SSID              | Channel | RSSI |   Auth Mode \n");
-	printf("----------------------------------------------------------------\n");
-	for( p = ap_records; p < ap_records + ap_num; ++p )
-		printf("%32s | %7d | %4d | %12s\n", (char *)p->ssid, p->primary, p->rssi, getAuthModeName(p->authmode));
-	printf("----------------------------------------------------------------\n");
+		for( p = ap_records; p < ap_records + ap_num && p->rssi > -80; ++p )
+			oled_text( (char *)p->ssid );
+
+		// print the list 
+		printf("Found %d access points:\n\n", ap_num);
+		printf("               SSID              | Channel | RSSI |   Auth Mode \n");
+		printf("----------------------------------------------------------------\n");
+		for( p = ap_records; p < ap_records + ap_num; ++p )
+			printf("%32s | %7d | %4d | %12s\n", (char *)p->ssid, p->primary, p->rssi, getAuthModeName(p->authmode));
+		printf("----------------------------------------------------------------\n");
+
+		wait_next();
+	}
+
 	
-	// infinite loop
-	xTaskCreate(&task_idle, "task_idle", 2048, NULL, 5, NULL);
 }
+
