@@ -2,4 +2,4 @@ build/
 *.[oa]
 *~
 *.swp
-
+sdkconfig*
