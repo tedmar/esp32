@@ -7,8 +7,6 @@
 #include "blink.h"
 #include "tdelay.h"
 
-#define BLINK_GPIO 2
-
 static void
 led_off( void )
 {
